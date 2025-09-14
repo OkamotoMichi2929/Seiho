@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>アクチュアリー試験 過去問カード</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#111827" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <style>
+    :root{--bg:#0b1020;--card:#111827;--text:#e5e7eb;--muted:#9ca3af;--acc:#60a5fa}
+    html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans JP","Hiragino Kaku Gothic ProN",Meiryo,sans-serif}
+    header{position:sticky;top:0;z-index:3;background:linear-gradient(180deg,rgba(11,16,32,.95),rgba(11,16,32,.8));backdrop-filter:blur(8px);border-bottom:1px solid #1f2937}
+    .wrap{max-width:900px;margin:0 auto;padding:14px 16px}
+    .row{display:grid;gap:8px;grid-template-columns:1fr 1fr 1fr}
+    .row2{display:grid;gap:8px;grid-template-columns:1fr 1fr}
+    @media (max-width:800px){.row{grid-template-columns:1fr 1fr}.row2{grid-template-columns:1fr}}
+    select,input,button{background:#0f172a;color:var(--text);border:1px solid #1f2937;border-radius:10px;padding:10px}
+    button{cursor:pointer}
+    main{max-width:900px;margin:0 auto;padding:12px 16px}
+    .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 4px 18px rgba(0,0,0,.25)}
+    .meta{display:flex;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:.9rem}
+    .tags{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+    .tag{background:#0b1225;border:1px solid #1f2937;color:#93c5fd;border-radius:999px;padding:4px 10px;font-size:.8rem}
+    .q{font-size:1.05rem;line-height:1.6}
+    .ans{margin-top:10px;border-top:1px dashed #334155;padding-top:10px}
+    details>summary{cursor:pointer;color:#93c5fd}
+    .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+    .counter{color:var(--muted);margin-left:auto}
+    .pill{border-radius:999px;padding:8px 12px;background:#0f172a;border:1px solid #1f2937}
+    .katex{font-size:1.02em}
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="row">
+      <select id="year"></select>
+      <select id="subject"></select>
+      <select id="topic"></select>
+    </div>
+    <div class="row2" style="margin-top:8px;">
+      <input id="q" placeholder="キーワード検索（数式は $x^2$ などのままでOK）">
+      <div class="toolbar">
+        <label class="pill"><input type="checkbox" id="shuffle"> シャッフル</label>
+        <label class="pill"><input type="checkbox" id="hideAnswers"> 解答を最初は隠す</label>
+        <span class="counter" id="count"></span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="list"></main>
+
+<script>
+  // ---- Utils: LaTeX → KaTeX HTML ----
+  function renderMathToHTML(text) {
+    if (!text) return "";
+    // $$...$$（display）を先に
+    text = text.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) =>
+      katex.renderToString(expr, { displayMode: true, throwOnError: false })
+    );
+    // $...$（inline）
+    text = text.replace(/\$([^$]+)\$/g, (_, expr) =>
+      katex.renderToString(expr, { displayMode: false, throwOnError: false })
+    );
+    // 改行は<br>
+    return text.replace(/\n/g, "<br>");
+  }
+
+  // ---- State ----
+  let DATA = [];
+  let filtered = [];
+
+  // ---- DOM refs ----
+  const selYear = document.getElementById('year');
+  const selSubject = document.getElementById('subject');
+  const selTopic = document.getElementById('topic');
+  const inputQ = document.getElementById('q');
+  const chkShuffle = document.getElementById('shuffle');
+  const chkHide = document.getElementById('hideAnswers');
+  const list = document.getElementById('list');
+  const counter = document.getElementById('count');
+
+  // ---- Load data ----
+  fetch('data.json')
+    .then(r => r.json())
+    .then(json => {
+      DATA = json;
+      initFilters();
+      applyFilters();
+      // PWA: register SW
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js');
+      }
+    });
+
+  function initFilters() {
+    const years = Array.from(new Set(DATA.map(d => d.year))).sort((a,b)=>b-a);
+    const subjects = Array.from(new Set(DATA.map(d => d.subject))).sort();
+    const topics = Array.from(new Set(DATA.map(d => d.topic))).sort();
+
+    fillSelect(selYear, ['すべて', ...years.map(String)]);
+    fillSelect(selSubject, ['すべて', ...subjects]);
+    fillSelect(selTopic, ['すべて', ...topics]);
+
+    [selYear, selSubject, selTopic, chkShuffle, chkHide].forEach(el => {
+      el.addEventListener('change', applyFilters);
+    });
+    inputQ.addEventListener('input', applyFilters);
+  }
+
+  function fillSelect(select, items) {
+    select.innerHTML = items.map(v => `<option value="${v}">${v}</option>`).join('');
+  }
+
+  function applyFilters() {
+    const y = selYear.value;
+    const s = selSubject.value;
+    const t = selTopic.value;
+    const q = inputQ.value.trim().toLowerCase();
+
+    filtered = DATA.filter(d => {
+      const okY = (y === 'すべて') || String(d.year) === y;
+      const okS = (s === 'すべて') || d.subject === s;
+      const okT = (t === 'すべて') || d.topic === t;
+      const hay = [
+        d.title, d.question, d.answer, d.subject, d.topic,
+        (d.tags||[]).join(' ')
+      ].join(' ').toLowerCase();
+      const okQ = !q || hay.includes(q);
+      return okY && okS && okT && okQ;
+    });
+
+    if (chkShuffle.checked) {
+      for (let i = filtered.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
+      }
+    }
+
+    renderList();
+  }
+
+  function renderList() {
+    counter.textContent = `${filtered.length} 件`;
+    list.innerHTML = filtered.map(d => cardHTML(d)).join('');
+    // 解答を最初に閉じる
+    if (chkHide.checked) {
+      list.querySelectorAll('details').forEach(dt => dt.open = false);
+    }
+  }
+
+  function escapeHTML(s){return s.replace(/[&<>"']/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]))}
+
+  function cardHTML(d) {
+    const qHTML = renderMathToHTML(escapeHTML(d.question));
+    const aHTML = renderMathToHTML(escapeHTML(d.answer));
+    const tags = (d.tags||[]).map(t=>`<span class="tag">#${t}</span>`).join('');
+    const meta = [
+      d.year && `${d.year}年`,
+      d.number && d.number,
+      d.subject && d.subject,
+      d.topic && d.topic,
+    ].filter(Boolean).join('・');
+
+    const src = d.source ? `<a href="${d.source}" target="_blank" rel="noopener">出典</a>` : '';
+
+    return `
+      <article class="card">
+        <div class="meta">${meta}</div>
+        <h3 style="margin:6px 0 10px">${escapeHTML(d.title||'問題')}</h3>
+        <div class="q">${qHTML}</div>
+        <details class="ans" ${chkHide.checked ? '' : 'open'}>
+          <summary>解答・解説を見る</summary>
+          <div style="margin-top:8px">${aHTML}</div>
+        </details>
+        <div class="tags">${tags}</div>
+        <div class="meta">${src}</div>
+      </article>
+    `;
+  }
+</script>
+</body>
+</html>
