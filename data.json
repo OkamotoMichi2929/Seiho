@@ -1,0 +1,26 @@
+[
+  {
+    "id": "ex-001",
+    "year": 2024,
+    "number": "問1(1) 例",
+    "subject": "生保数理",
+    "topic": "平均余命",
+    "title": "平均余命の微分公式",
+    "tags": ["生命表","連続モデル","微分"],
+    "question": "連続時間モデルで生存関数を $S(x)$、死力を $\\mu(x)$、残存平均余命を $e_x$ とする。$e_x = \\int_0^{\\infty} \\frac{S(x+t)}{S(x)}\\,dt$ が成り立つとき、$\\dfrac{d}{dx} e_x = \\mu(x)\\, e_x - 1$ を示せ。",
+    "answer": "定義より $e_x=\\int_0^{\\infty}\\frac{S(x+t)}{S(x)}dt$。分子分母を微分し $$\\frac{d}{dx}\\frac{S(x+t)}{S(x)}=\\frac{S'(x+t)}{S(x)}-\\frac{S(x+t)S'(x)}{S(x)^2}.$$ $S'(u)=-\\mu(u)S(u)$ を用いると右辺は $-\\mu(x+t)\\tfrac{S(x+t)}{S(x)}+\\mu(x)\\tfrac{S(x+t)}{S(x)}$。よって $$\\frac{d}{dx}e_x=\\int_0^{\\infty}\\left[-\\mu(x+t)\\,\\frac{S(x+t)}{S(x)}+\\mu(x)\\,\\frac{S(x+t)}{S(x)}\\right]dt.$$ さらに $\\int_0^{\\infty}\\mu(x+t)\\frac{S(x+t)}{S(x)}dt=\\left[-\\frac{S(x+t)}{S(x)}\\right]_0^{\\infty}=1$ を用いれば、$\\dfrac{d}{dx}e_x=\\mu(x)\\,e_x-1$。",
+    "source": ""
+  },
+  {
+    "id": "ex-002",
+    "year": 2024,
+    "number": "問1(2) 例",
+    "subject": "生保数理",
+    "topic": "責任準備金",
+    "title": "終身保険の責任準備金（将来法）",
+    "tags": ["責任準備金","将来価値","終身保険"],
+    "question": "給付1、保険料 $P$、利率 $\\delta$ の連続払い終身保険で、責任準備金を将来法で表せ。",
+    "answer": "時点 $x+t$ の責任準備金 $V(t)$ は将来給付の期待現価と将来保険料の期待現価の差。連続モデルでは $$V(t)=\\,\\,\\,\\,\\bar{A}_{x+t}-P\\,\\bar{a}_{x+t},$$ ここで $\\bar{A}_{x+t}=\\int_0^{\\infty}e^{-\\delta u}\\,\\mu(x+t+u)\\,\\,{}_u p_{x+t}\\,du$, $\\bar{a}_{x+t}=\\int_0^{\\infty}e^{-\\delta u} \\; {}_u p_{x+t}\\,du$。",
+    "source": ""
+  }
+]
