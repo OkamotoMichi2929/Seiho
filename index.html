@@ -39,6 +39,11 @@
       <select id="year"></select>
       <select id="subject"></select>
       <select id="topic"></select>
+      <select id="solved">
+        <option value="all">すべて</option>
+        <option value="solved">解答済み</option>
+        <option value="unsolved">未解答</option>
+      </select>
     </div>
     <div class="row2" style="margin-top:8px;">
       <input id="q" placeholder="キーワード検索（数式は $x^2$ などのままでOK）">
@@ -73,10 +78,32 @@
   let DATA = [];
   let filtered = [];
 
+  // ---- Solved state management ----
+  function setSolved(id, solved) {
+    const solvedIds = getSolvedIds();
+    if (solved) {
+      solvedIds.add(id);
+    } else {
+      solvedIds.delete(id);
+    }
+    localStorage.setItem('solvedIds', JSON.stringify([...solvedIds]));
+    applyFilters();
+  }
+
+  function getSolvedIds() {
+    const saved = localStorage.getItem('solvedIds');
+    return new Set(saved ? JSON.parse(saved) : []);
+  }
+
+  function isSolved(id) {
+    return getSolvedIds().has(id);
+  }
+
   // ---- DOM refs ----
   const selYear = document.getElementById('year');
   const selSubject = document.getElementById('subject');
   const selTopic = document.getElementById('topic');
+  const selSolved = document.getElementById('solved');
   const inputQ = document.getElementById('q');
   const chkShuffle = document.getElementById('shuffle');
   const chkHide = document.getElementById('hideAnswers');
@@ -105,7 +132,7 @@
     fillSelect(selSubject, ['すべて', ...subjects]);
     fillSelect(selTopic, ['すべて', ...topics]);
 
-    [selYear, selSubject, selTopic, chkShuffle, chkHide].forEach(el => {
+    [selYear, selSubject, selTopic, selSolved, chkShuffle, chkHide].forEach(el => {
       el.addEventListener('change', applyFilters);
     });
     inputQ.addEventListener('input', applyFilters);
@@ -120,6 +147,7 @@
     const s = selSubject.value;
     const t = selTopic.value;
     const q = inputQ.value.trim().toLowerCase();
+    const solved = selSolved.value;
 
     filtered = DATA.filter(d => {
       const okY = (y === 'すべて') || String(d.year) === y;
@@ -130,7 +158,10 @@
         (d.tags||[]).join(' ')
       ].join(' ').toLowerCase();
       const okQ = !q || hay.includes(q);
-      return okY && okS && okT && okQ;
+      const okSolved = solved === 'all' ||
+        (solved === 'solved' && isSolved(d.id)) ||
+        (solved === 'unsolved' && !isSolved(d.id));
+      return okY && okS && okT && okQ && okSolved;
     });
 
     if (chkShuffle.checked) {
@@ -154,6 +185,26 @@
 
   function escapeHTML(s){return s.replace(/[&<>"']/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]))}
 
+  // ---- Solved state management ----
+  function setSolved(id, solved) {
+    const solvedIds = getSolvedIds();
+    if (solved) {
+      solvedIds.add(id);
+    } else {
+      solvedIds.delete(id);
+    }
+    localStorage.setItem('solvedIds', JSON.stringify([...solvedIds]));
+  }
+
+  function getSolvedIds() {
+    const saved = localStorage.getItem('solvedIds');
+    return new Set(saved ? JSON.parse(saved) : []);
+  }
+
+  function isSolved(id) {
+    return getSolvedIds().has(id);
+  }
+
   function cardHTML(d) {
     const qHTML = renderMathToHTML(escapeHTML(d.question));
     const aHTML = renderMathToHTML(escapeHTML(d.answer));
@@ -170,6 +221,14 @@
     return `
       <article class="card">
         <div class="meta">${meta}</div>
+        <div class="toolbar" style="margin:0 0 10px">
+          <label class="pill">
+            <input type="checkbox" 
+              ${isSolved(d.id) ? 'checked' : ''}
+              onchange="setSolved('${d.id}', this.checked)"> 
+            解答済み
+          </label>
+        </div>
         <h3 style="margin:6px 0 10px">${escapeHTML(d.title||'問題')}</h3>
         <div class="q">${qHTML}</div>
         <details class="ans" ${chkHide.checked ? '' : 'open'}>
